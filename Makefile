@@ -2,8 +2,8 @@ PROJECT_NAME     := blinky_pca10059_mbr
 TARGETS          := nrf52840_xxaa
 OUTPUT_DIRECTORY := _build
 
-SDK_ROOT := /home/user/devel/ESTC-NSDK
-PROJ_DIR := /home/user/progect
+SDK_ROOT := ../devel/ESTC-NSDK
+PROJ_DIR := ../progect
 
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
   LINKER_SCRIPT  := blinky_gcc_nrf52.ld
