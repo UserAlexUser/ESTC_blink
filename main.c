@@ -64,19 +64,14 @@ int main(void)
     /* Toggle LEDs. */
     while (true)
     {
-        bsp_board_led_on(0);
-        nrf_delay_ms(6000);
-        bsp_board_led_off(0);
-        bsp_board_led_on(1);
-        nrf_delay_ms(5000);
-        bsp_board_led_off(1);
-        bsp_board_led_on(2);
-        nrf_delay_ms(8000);
-        bsp_board_led_off(2);
-        bsp_board_led_on(3);
-        nrf_delay_ms(9000);
-        bsp_board_led_off(3);
-
+        for(int i=0; i<12; i++)
+            {bsp_board_led_invert(0); nrf_delay_ms(500);}
+        for(int i=0; i<10; i++)
+            {bsp_board_led_invert(1); nrf_delay_ms(500);}
+        for(int i=0; i<16; i++)
+            {bsp_board_led_invert(2); nrf_delay_ms(500);}
+        for(int i=0; i<18; i++)
+            {bsp_board_led_invert(3); nrf_delay_ms(500);}
     }
 }
 
