@@ -36,7 +36,7 @@ int main(void)
     char number_led[4] = {0, 1, 2, 3};
     while (true)
     {
-        for(int i=0; 1<4; i++)
+        for(int i=0; i<4; i++)
         {
             for(int j=0; j<cnt_led[i]; j++)
             {
