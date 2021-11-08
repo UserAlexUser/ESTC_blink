@@ -7,15 +7,16 @@
 #define NRF_GPIO_PIN_MAP(port, pin) (((port) << 5) | ((pin) & 0x1F))
 
 static const uint8_t led_list[LEDS_NUMBER] = LEDS_LIST;
+static const uint8_t btn_list[BUTTONS_NUMBER] = BUTTONS_LIST;
 
 void on_led(uint32_t led_idx)
 {
-    nrf_gpio_pin_write(led_list[led_idx], 1);
+    nrf_gpio_pin_write(led_list[led_idx], 0);
 }
 
 void off_led(uint32_t led_idx)
 {
-    nrf_gpio_pin_write(led_list[led_idx], 0);
+    nrf_gpio_pin_write(led_list[led_idx], 1);
 }
 
 void toggle_led(uint32_t led_idx)
@@ -29,20 +30,40 @@ void init_led(uint32_t led_idx)
     off_led(led_list[led_idx]);  
 }
 
+bool button_state(uint32_t btn_idx)
+{
+    bool pin_set = nrf_gpio_pin_read(btn_list[btn_idx]) ? true : false;
+    return(pin_set == (BUTTONS_ACTIVE_STATE ? true : false));
+}
+
 int main(void)
 {
-    bsp_board_init(BSP_INIT_LEDS);
-    char cnt_led[4] = {6*2, 5*2, 8*2, 9*2};
+    bsp_board_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS);
+    char cnt_led[4] = {6, 5, 8, 9};
     char number_led[4] = {0, 1, 2, 3};
+    int i = 0;
+    int j = 0;
     while (true)
-    {
-        for(int i=0; i<4; i++)
-        {
-            for(int j=0; j<cnt_led[i]; j++)
+    {   
+        while(i<4)
+        {   
+            if(button_state(BSP_BUTTON_0))
             {
-                toggle_led(number_led[i]);
-                nrf_delay_ms(250);
+                while(j<cnt_led[i])
+                {   
+                    if(button_state(BSP_BUTTON_0))
+                    {
+                        on_led(number_led[i]);
+                        nrf_delay_ms(500);
+                        off_led(number_led[i]);
+                        nrf_delay_ms(500);
+                        j++;
+                    }
+                }
+                j=0;
+                i++;
             }
         }
+        i=0;
     }
 }
