@@ -48,7 +48,7 @@ int main(void)
         while(i<4)
         {   
             if(button_state(BSP_BUTTON_0))
-            {
+            {   
                 while(j<cnt_led[i])
                 {   
                     if(button_state(BSP_BUTTON_0))
@@ -59,11 +59,23 @@ int main(void)
                         nrf_delay_ms(500);
                         j++;
                     }
+                    else
+                    {
+                        break;
+                    }
                 }
-                j=0;
-                i++;
+                if (j>=cnt_led[i])
+                {
+                    j=0;
+                    i++;
+                }
+                if (i>=4)
+                {
+                    i=0;
+                }
             }
+            else
+            break;
         }
-        i=0;
     }
 }
