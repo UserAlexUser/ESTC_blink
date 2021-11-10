@@ -4,7 +4,13 @@
 #include "nrf_gpio.h"
 #include "boards.h"
 
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
+#include "nrf_log_default_backends.h"
+#include "nrf_log_backend_usb.h"
+
 #define NRF_GPIO_PIN_MAP(port, pin) (((port) << 5) | ((pin) & 0x1F))
+#define MAX_LEDS 4
 
 static const uint8_t led_list[LEDS_NUMBER] = LEDS_LIST;
 static const uint8_t btn_list[BUTTONS_NUMBER] = BUTTONS_LIST;
@@ -36,25 +42,39 @@ bool button_state(uint32_t btn_idx)
     return(pin_set == (BUTTONS_ACTIVE_STATE ? true : false));
 }
 
-int main(void)
+void logs_init()
 {
-    bsp_board_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS);
+    ret_code_t ret = NRF_LOG_INIT(NULL);
+    APP_ERROR_CHECK(ret);
+
+    NRF_LOG_DEFAULT_BACKENDS_INIT();
+}
+
+int main(void)
+{   
     char cnt_led[4] = {6, 5, 8, 9};
     char number_led[4] = {0, 1, 2, 3};
     int i = 0;
     int j = 0;
+
+    logs_init();
+    bsp_board_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS);
+
+    NRF_LOG_INFO("HELLOW I'am Nordic");
+    
     while (true)
     {   
-        while((i<4) && (button_state(BSP_BUTTON_0)))
+        while((i<MAX_LEDS) && (button_state(BSP_BUTTON_0)))
         {     
             while((j<cnt_led[i]) && (button_state(BSP_BUTTON_0)))
             {   
-
+                NRF_LOG_INFO("BLINK");
                 on_led(number_led[i]);
                 nrf_delay_ms(500);
                 off_led(number_led[i]);
                 nrf_delay_ms(500);
                 j++;
+                NRF_LOG_PROCESS();
 
             }
             if (j>=cnt_led[i])
@@ -62,10 +82,11 @@ int main(void)
                 j=0;
                 i++;
             }
-            if (i>=4)
+            if (i>=MAX_LEDS)
             {
                 i=0;
             }
         }
+        LOG_BACKEND_USB_PROCESS();
     }
 }
