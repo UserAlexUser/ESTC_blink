@@ -45,37 +45,27 @@ int main(void)
     int j = 0;
     while (true)
     {   
-        while(i<4)
-        {   
-            if(button_state(BSP_BUTTON_0))
+        while((i<4) && (button_state(BSP_BUTTON_0)))
+        {     
+            while((j<cnt_led[i]) && (button_state(BSP_BUTTON_0)))
             {   
-                while(j<cnt_led[i])
-                {   
-                    if(button_state(BSP_BUTTON_0))
-                    {
-                        on_led(number_led[i]);
-                        nrf_delay_ms(500);
-                        off_led(number_led[i]);
-                        nrf_delay_ms(500);
-                        j++;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                if (j>=cnt_led[i])
-                {
-                    j=0;
-                    i++;
-                }
-                if (i>=4)
-                {
-                    i=0;
-                }
+
+                on_led(number_led[i]);
+                nrf_delay_ms(500);
+                off_led(number_led[i]);
+                nrf_delay_ms(500);
+                j++;
+
             }
-            else
-            break;
+            if (j>=cnt_led[i])
+            {
+                j=0;
+                i++;
+            }
+            if (i>=4)
+            {
+                i=0;
+            }
         }
     }
 }
