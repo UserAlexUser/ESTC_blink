@@ -5065,7 +5065,7 @@
  
 
 #ifndef SYSTICK_ENABLED
-#define SYSTICK_ENABLED 0
+#define SYSTICK_ENABLED 1
 #endif
 
 // <e> TIMER_ENABLED - nrf_drv_timer - TIMER periperal driver - legacy layer
