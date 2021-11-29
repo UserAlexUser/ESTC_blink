@@ -2,62 +2,37 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "nrf_delay.h"
-#include "nrf_gpio.h"
-#include "nrf.h"
-#include "nrf_drv_gpiote.h"
-#include "app_error.h"
-#include "boards.h"
-
-#include "nrf_log.h"
-#include "nrf_log_ctrl.h"
-#include "nrf_log_default_backends.h"
-#include "nrf_log_backend_usb.h"
-
-#include "nrfx_systick.h"
+#include "app_timer.h"
+#include "function.h"
 
 #define NRF_GPIO_PIN_MAP(port, pin) (((port) << 5) | ((pin) & 0x1F))
 #define MAX_LEDS 4
 #define COUNT_1KHz 1000
+#define TIMER_1c 1000
 
-static const uint8_t led_list[LEDS_NUMBER] = LEDS_LIST;
-static const uint8_t btn_list[BUTTONS_NUMBER] = BUTTONS_LIST;
 char count_button = 0;
 char double_click = 0;
 
-void on_led(uint32_t led_idx)
+APP_TIMER_DEF(button_timer);                                           
+
+static void button_zero_out(void * p_context)
 {
-    nrf_gpio_pin_write(led_list[led_idx], 0);
+    count_button = 0;
 }
 
-void off_led(uint32_t led_idx)
+static void timer_init(void)
 {
-    nrf_gpio_pin_write(led_list[led_idx], 1);
+    ret_code_t err_code;
+    err_code = app_timer_init();
+    APP_ERROR_CHECK(err_code);
+    err_code = app_timer_create(&button_timer, APP_TIMER_MODE_SINGLE_SHOT, button_zero_out);
+    APP_ERROR_CHECK(err_code);
 }
 
-void toggle_led(uint32_t led_idx)
+static void timer_start(void)
 {
-    nrf_gpio_pin_toggle(led_list[led_idx]);
-}
-
-void init_led(uint32_t led_idx)
-{
-    nrf_gpio_cfg_output(led_list[led_idx]);
-    off_led(led_list[led_idx]);  
-}
-
-bool button_state(uint32_t btn_idx)
-{
-    bool pin_set = nrf_gpio_pin_read(btn_list[btn_idx]) ? true : false;
-    return(pin_set == (BUTTONS_ACTIVE_STATE ? true : false));
-}
-
-void logs_init()
-{
-    ret_code_t ret = NRF_LOG_INIT(NULL);
-    APP_ERROR_CHECK(ret);
-
-    NRF_LOG_DEFAULT_BACKENDS_INIT();
+    uint32_t err_code = app_timer_start(button_timer, APP_TIMER_TICKS(TIMER_1c), NULL);//таймер на 1 секунду
+    APP_ERROR_CHECK(err_code);
 }
 
 void button_pressed(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
@@ -68,6 +43,7 @@ void button_pressed(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
         double_click = (double_click ? 0 : 1);
         count_button = 0;
     }
+    timer_start();//ждём второе нажатие кнопки
 }
 
 static void interrupt_init(void)
@@ -89,9 +65,9 @@ int main(void)
 {   
     char cnt_led[4] = {6, 5, 8, 9};
     char number_led[4] = {0, 1, 2, 3};
-    int i = 0;
-    int j = 0;
-    int jj = 0;
+    int count_leds = 0;
+    int count_blink = 0;
+    int count_smooth_blinking = 0;
     logs_init();
     bsp_board_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS);
     nrfx_systick_init();
@@ -99,37 +75,38 @@ int main(void)
     NRF_LOG_INFO("HELLOW I'am Nordic");
 
     interrupt_init();
+    timer_init();
 
     while (true)
     {   
 
-        while((i<MAX_LEDS) && ( double_click != 0))
+        while((count_leds<MAX_LEDS) && ( double_click != 0))
         {     
-            while((j<cnt_led[i]) && (double_click != 0))
+            while((count_blink<cnt_led[count_leds]) && (double_click != 0))
             {   
                 NRF_LOG_INFO("BLINK");
-                for(jj=0 ; (jj<(COUNT_1KHz*2)) && (double_click != 0); jj++)
+                for(count_smooth_blinking=0 ; (count_smooth_blinking<(COUNT_1KHz*2)) && (double_click != 0); count_smooth_blinking++)
                 {   
                     do
                     {
-                        on_led(number_led[i]);
-                        nrfx_systick_delay_us(MIN(jj, (COUNT_1KHz*2) - jj));
-                        off_led(number_led[i]);
-                        nrfx_systick_delay_us(abs(COUNT_1KHz-jj));
+                        on_led(number_led[count_leds]);
+                        nrfx_systick_delay_us(MIN(count_smooth_blinking, (COUNT_1KHz*2) - count_smooth_blinking));
+                        off_led(number_led[count_leds]);
+                        nrfx_systick_delay_us(abs(COUNT_1KHz - count_smooth_blinking));
                     } while ( !double_click );
                 }
-                j++;
+                count_blink++;
                 NRF_LOG_PROCESS();
 
             }
-            if (j>=cnt_led[i])
+            if (count_blink>=cnt_led[count_leds])
             {
-                j=0;
-                i++;
+                count_blink=0;
+                count_leds++;
             }
-            if (i>=MAX_LEDS)
+            if (count_leds>=MAX_LEDS)
             {
-                i=0;
+                count_leds=0;
             }
         }
         LOG_BACKEND_USB_PROCESS();
