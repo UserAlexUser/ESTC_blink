@@ -8,6 +8,9 @@
 #include "app_error.h"
 #include "boards.h"
 
+#include "nrf_drv_pwm.h"
+#include "app_timer.h"
+
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
