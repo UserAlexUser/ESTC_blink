@@ -1,30 +1,55 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-
 #include "function.h"
 
 #define NRF_GPIO_PIN_MAP(port, pin) (((port) << 5) | ((pin) & 0x1F))
 #define MAX_LEDS 4
 #define COUNT_1KHz 1000
 #define TIMER_1c 1000
+#define MAX_BRIGHT 34464
+#define MIN_BRIGHT 0
+#define BRIGHT_STEP 32
+#define MAX_STEP 1077
+#define OFF 0
 
 char flag_condition = 0;//0-положение по умолчанию 1-выбираем цвет 2-выбираем насыщенность 3-выбираем яркость
 static nrf_drv_pwm_t m_pwm0 = NRF_DRV_PWM_INSTANCE(0);
 char count_button = 0;
-#define USED_PWM(idx) (1UL << idx)
-static uint8_t m_used = 0;
-static uint16_t const              m_LED_0_top  = 10000;
-static uint16_t                    m_LED_0_step = 0;
-static uint8_t                     m_LED_0_phase;
+bool state_button = false;
+char phase = 0;
+static uint16_t const              m_led_0_top  = 10000;
+static uint16_t                    m_led_0_step = 0;
+static uint8_t                     m_led_0_phase;
 static nrf_pwm_values_individual_t m_led_0_seq_values;
-static nrf_pwm_sequence_t const    m_LED_0_seq =
+static nrf_pwm_sequence_t const    m_led_0_seq =
 {
     .values.p_individual = &m_led_0_seq_values,
     .length              = NRF_PWM_VALUES_LENGTH(m_led_0_seq_values),
     .repeats             = 0,
     .end_delay           = 0
 };
+
+static nrf_drv_pwm_t m_pwm1 = NRF_DRV_PWM_INSTANCE(1);
+static uint16_t const              m_led_rgb_top  = 10000;
+static uint8_t                     m_led_rgb_phase;
+static nrf_pwm_values_individual_t m_led_rgb_seq_values;
+static nrf_pwm_sequence_t const    m_led_rgb_seq =
+{
+    .values.p_individual = &m_led_rgb_seq_values,
+    .length              = NRF_PWM_VALUES_LENGTH(m_led_rgb_seq_values),
+    .repeats             = 0,
+    .end_delay           = 0
+};
+
+uint16_t begin_value_1 = 0;
+uint16_t begin_value_2 = 0;
+uint16_t begin_value_3 = 0;
+
+uint16_t second_value_1 = 0;
+uint16_t second_value_2 = 0;
+uint16_t second_value_3 = 0;
+
 APP_TIMER_DEF(button_timer);                                           
 
 static void button_zero_out(void * p_context)
@@ -46,19 +71,128 @@ static void timer_start(void)
     uint32_t err_code = app_timer_start(button_timer, APP_TIMER_TICKS(TIMER_1c), NULL);//таймер на 1 секунду
     APP_ERROR_CHECK(err_code);
 }
-static void colors_init(void)
-{
 
+static void LED_RGB_handler(nrf_drv_pwm_evt_type_t event_type)
+{
+    if (event_type == NRF_DRV_PWM_EVT_FINISHED)
+    {
+        uint16_t value_1 = m_led_rgb_seq_values.channel_1;
+        uint16_t value_2 = m_led_rgb_seq_values.channel_2;
+        uint16_t value_3 = m_led_rgb_seq_values.channel_3;
+        if(flag_condition == 1 && state_button)
+        {   
+            if (value_1 == OFF && value_2 == OFF && value_3 == OFF)
+                value_1 = MAX_BRIGHT;
+
+            if (value_1 == MAX_BRIGHT)
+                phase=1;
+            else if (value_2 == MAX_BRIGHT)
+                phase=2;
+            else if (value_3 == MAX_BRIGHT)
+                phase=3;
+            if (value_1 == OFF && value_2 == OFF && value_3 == OFF)
+                m_led_rgb_seq_values.channel_1 = MAX_BRIGHT;
+
+            if(phase == 1)
+            {
+                value_1-=BRIGHT_STEP;
+                value_2+=BRIGHT_STEP;
+            }                    
+            else if(phase == 2)
+            {
+                value_2-=BRIGHT_STEP;
+                value_3+=BRIGHT_STEP;
+            }
+            else if(phase == 3)
+            {
+                value_3-=BRIGHT_STEP;
+                value_1+=BRIGHT_STEP;
+            }
+        }
+        else if (flag_condition == 2 && state_button)
+        {
+            if ((value_1 + BRIGHT_STEP) >= MAX_BRIGHT)
+                value_1 = MAX_BRIGHT;
+            else
+                value_1 += BRIGHT_STEP;
+
+            if ((value_2 + BRIGHT_STEP) >= MAX_BRIGHT)
+                value_2 = MAX_BRIGHT;
+            else
+                value_2 += BRIGHT_STEP;
+
+            if ((value_3 + BRIGHT_STEP) >= MAX_BRIGHT)
+                value_3 = MAX_BRIGHT;
+            else
+                value_3 += BRIGHT_STEP;
+
+            if((value_1 == MAX_BRIGHT) && (value_2 == MAX_BRIGHT) && (value_3 == MAX_BRIGHT))
+            {
+                value_1 = begin_value_1;
+                value_2 = begin_value_2;
+                value_3 = begin_value_3;
+            }
+
+        }
+        else if (flag_condition == 3 && state_button)
+        {
+            if ((value_1 - BRIGHT_STEP) <= MIN_BRIGHT)
+                value_1 = MIN_BRIGHT;
+            else
+                value_1 -= BRIGHT_STEP;
+
+            if ((value_2 - BRIGHT_STEP) <= MIN_BRIGHT)
+                value_2 = MIN_BRIGHT;
+            else
+                value_2 -= BRIGHT_STEP;
+
+            if ((value_3 - BRIGHT_STEP) <= MIN_BRIGHT)
+                value_3 = MIN_BRIGHT;
+            else
+                value_3 -= BRIGHT_STEP;
+
+            if((value_1 == MIN_BRIGHT) && (value_2 == MIN_BRIGHT) && (value_3 == MIN_BRIGHT))
+            {
+                value_1 = second_value_1;
+                value_2 = second_value_2;
+                value_3 = second_value_3;
+            }
+
+        }
+        m_led_rgb_seq_values.channel_1 = value_1;
+        m_led_rgb_seq_values.channel_2 = value_2;
+        m_led_rgb_seq_values.channel_3 = value_3;
+    }
 }
 
-static void saturation_init(void)
+static void LED_RGB(void)
 {
+        nrf_drv_pwm_config_t const config1 =
+    {
+        .output_pins =
+        {
+            NRF_DRV_PWM_PIN_NOT_USED, // channel 0
+            BSP_LED_1 | NRF_DRV_PWM_PIN_INVERTED, // channel 1
+            BSP_LED_2 | NRF_DRV_PWM_PIN_INVERTED, // channel 2
+            BSP_LED_3 | NRF_DRV_PWM_PIN_INVERTED  // channel 3
+        },
+        .irq_priority = APP_IRQ_PRIORITY_LOWEST,
+        .base_clock   = NRF_PWM_CLK_1MHz,
+        .count_mode   = NRF_PWM_MODE_UP,
+        .top_value    = m_led_rgb_top,
+        .load_mode    = NRF_PWM_LOAD_INDIVIDUAL,
+        .step_mode    = NRF_PWM_STEP_AUTO
+    };
+    APP_ERROR_CHECK(nrf_drv_pwm_init(&m_pwm1, &config1, LED_RGB_handler));
+    // m_used1 |= USED_PWM(0);
 
-}
+    m_led_rgb_seq_values.channel_0 = 0;
+    m_led_rgb_seq_values.channel_1 = 0;
+    m_led_rgb_seq_values.channel_2 = 0;
+    m_led_rgb_seq_values.channel_3 = 0;
+    m_led_rgb_phase                = 1;
 
-static void brightness_init(void)
-{
-
+    (void)nrf_drv_pwm_simple_playback(&m_pwm1, &m_led_rgb_seq, 1, NRF_DRV_PWM_FLAG_LOOP);
 }
 
 void button_pressed(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
@@ -74,24 +208,29 @@ void button_pressed(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 
     if(flag_condition == 1) // включаемплавное изменение цветов
     {
-        m_LED_0_step = 300;
-        colors_init();
+        m_led_0_step = 300;
     }
     else if(flag_condition == 2) // выбираем насыщенность
     {
-        m_LED_0_step = 700;
-        saturation_init();
+        begin_value_1 = m_led_rgb_seq_values.channel_1;
+        begin_value_2 = m_led_rgb_seq_values.channel_2;
+        begin_value_3 = m_led_rgb_seq_values.channel_3;
+        m_led_0_step = 700;
     }
     else if(flag_condition == 3) // выбираем яркость
     {
-        m_LED_0_step = 34464;
-        brightness_init();
+        second_value_1 = m_led_rgb_seq_values.channel_1;
+        second_value_2 = m_led_rgb_seq_values.channel_2;
+        second_value_3 = m_led_rgb_seq_values.channel_3;
+        m_led_0_step = MAX_BRIGHT;
     }
     else if(flag_condition > 3) // переходим в начальное состояние
     {
         flag_condition = 0;
-        m_LED_0_step = 0;
+        m_led_0_step = 0;
     }
+
+    state_button  = (state_button  ? false : true);
 }
 
 static void interrupt_init(void)
@@ -113,21 +252,20 @@ static void LED_0_handler(nrf_drv_pwm_evt_type_t event_type)
 {
     if (event_type == NRF_DRV_PWM_EVT_FINISHED)
     {
-        uint8_t channel    = m_LED_0_phase >> 1;
-
+        uint8_t channel    = m_led_0_phase;
         uint16_t * p_channels = (uint16_t *)&m_led_0_seq_values;
         uint16_t value = p_channels[channel];
-        if (m_LED_0_step == 0)
+        if (m_led_0_step == 0)
         {
-            value = m_LED_0_step;
+            value = m_led_0_step;
         }
-        else if (m_LED_0_step == 34464)
+        else if (m_led_0_step == MAX_BRIGHT)
         {
-            value = m_LED_0_step;
+            value = m_led_0_step;
         }
         else
         {
-            value += m_LED_0_step;
+            value += m_led_0_step;
         }
         p_channels[channel] = value;
     }
@@ -146,20 +284,20 @@ static void LED_0(void)
         .irq_priority = APP_IRQ_PRIORITY_LOWEST,
         .base_clock   = NRF_PWM_CLK_1MHz,
         .count_mode   = NRF_PWM_MODE_UP,
-        .top_value    = m_LED_0_top,
+        .top_value    = m_led_0_top,
         .load_mode    = NRF_PWM_LOAD_INDIVIDUAL,
         .step_mode    = NRF_PWM_STEP_AUTO
     };
     APP_ERROR_CHECK(nrf_drv_pwm_init(&m_pwm0, &config0, LED_0_handler));
-    m_used |= USED_PWM(0);
+    // m_used |= USED_PWM(0);
 
     m_led_0_seq_values.channel_0 = 0;
     m_led_0_seq_values.channel_1 = 0;
     m_led_0_seq_values.channel_2 = 0;
     m_led_0_seq_values.channel_3 = 0;
-    m_LED_0_phase                = 0;
+    m_led_0_phase                = 0;
 
-    (void)nrf_drv_pwm_simple_playback(&m_pwm0, &m_LED_0_seq, 1, NRF_DRV_PWM_FLAG_LOOP);
+    (void)nrf_drv_pwm_simple_playback(&m_pwm0, &m_led_0_seq, 1, NRF_DRV_PWM_FLAG_LOOP);
 }
 
 int main(void)
@@ -170,6 +308,7 @@ int main(void)
     NRF_LOG_INFO("HELLOW I'am Nordic");
     interrupt_init();
     timer_init();
+    LED_RGB();
     LED_0();
 
     while (true)
