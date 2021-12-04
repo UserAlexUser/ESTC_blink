@@ -6,7 +6,7 @@
 #define NRF_GPIO_PIN_MAP(port, pin) (((port) << 5) | ((pin) & 0x1F))
 #define MAX_LEDS 4
 #define COUNT_1KHz 1000
-#define TIMER_1c 500
+#define TIMER_1c 1000
 #define MAX_BRIGHT 10000//34464
 #define MIN_BRIGHT 0
 #define BRIGHT_STEP 100//96//32
@@ -53,12 +53,13 @@ uint16_t second_value_1 = 0;
 uint16_t second_value_2 = 0;
 uint16_t second_value_3 = 0;
 
+bool timer_end = true;
 APP_TIMER_DEF(button_timer);                                           
 
 static void button_zero_out(void * p_context)
 {
     count_button = 0;
-    //app_timer_stop(button_timer);
+    timer_end = true;
 }
 
 static void timer_init(void)
@@ -72,7 +73,7 @@ static void timer_init(void)
 
 static void timer_start(void)
 {
-    uint32_t err_code = app_timer_start(button_timer, APP_TIMER_TICKS(TIMER_1c), NULL);//таймер на 1 секунду
+    uint32_t err_code = app_timer_start(button_timer, APP_TIMER_TICKS(500), NULL);//таймер на 1 секунду
     APP_ERROR_CHECK(err_code);
 }
 
@@ -83,7 +84,7 @@ static void LED_RGB_handler(nrf_drv_pwm_evt_type_t event_type)
         uint16_t value_1 = m_led_rgb_seq_values.channel_1;
         uint16_t value_2 = m_led_rgb_seq_values.channel_2;
         uint16_t value_3 = m_led_rgb_seq_values.channel_3;
-        if(flag_condition == 1 )//&& state_button)
+        if(flag_condition == 1 && state_button)
         {   
             if (phase != 0)
             {
@@ -137,7 +138,7 @@ static void LED_RGB_handler(nrf_drv_pwm_evt_type_t event_type)
             save_value_2 = value_2;
             save_value_3 = value_3;
         }
-        else if (flag_condition == 2 )//&& state_button)
+        else if (flag_condition == 2 && state_button)
         {   
             if ((value_1 + BRIGHT_STEP) >= MAX_BRIGHT)
                 value_1 = MAX_BRIGHT;
@@ -162,7 +163,7 @@ static void LED_RGB_handler(nrf_drv_pwm_evt_type_t event_type)
             }
 
         }
-        else if (flag_condition == 3 )//&& state_button)
+        else if (flag_condition == 3 && state_button)
         {
             if ((value_1 - BRIGHT_STEP) <= MIN_BRIGHT)
                 value_1 = MIN_BRIGHT;
@@ -233,14 +234,14 @@ void button_pressed(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 
         if(flag_condition == 1) // включаемплавное изменение цветов
         {   
-            m_led_0_step = 300;
+            m_led_0_step = 500;
         }
         else if(flag_condition == 2) // выбираем насыщенность
         {
             begin_value_1 = m_led_rgb_seq_values.channel_1;
             begin_value_2 = m_led_rgb_seq_values.channel_2;
             begin_value_3 = m_led_rgb_seq_values.channel_3;
-            m_led_0_step = 700;
+            m_led_0_step = 1500;
         }
         else if(flag_condition == 3) // выбираем яркость
         {
@@ -255,7 +256,12 @@ void button_pressed(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
             m_led_0_step = 0;
         }
     }
-    timer_start();//ждём второе нажатие кнопки
+
+    if(timer_end)
+    {
+        timer_start();//ждём второе нажатие кнопки
+        timer_end = false;
+    }
 
     state_button  = (state_button  ? false : true);
 }
