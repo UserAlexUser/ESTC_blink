@@ -112,3 +112,4 @@ _build/nrf52840_xxaa/system_nrf52840.c.d
 _build/nrf52840_xxaa/system_nrf52840.c.o
 _build/nrf52840_xxaa/utf.c.d
 _build/nrf52840_xxaa/utf.c.o
+.vscode/settings.json
