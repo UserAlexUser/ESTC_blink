@@ -240,7 +240,7 @@ int main(void)
     //LED_0();
 
     //flash_write();
-    flash_read();//читаем значение с флэшки
+    //flash_read();//читаем значение с флэшки
 
     app_usbd_class_inst_t const * class_cdc_acm = app_usbd_cdc_acm_class_inst_get(&usb_cdc_acm);
     ret_code_t ret = app_usbd_class_append(class_cdc_acm);
